@@ -1,0 +1,66 @@
+{
+  "_comment": "SEU catálogo. Substitua pelos seus títulos. Use apenas conteúdo que você tem direito de distribuir (domínio público, produção própria ou licenciado). Os exemplos abaixo são curtas Creative Commons (CC-BY) da Blender Foundation.",
+  "movies": [
+    {
+      "id": "big-buck-bunny",
+      "title": "Big Buck Bunny",
+      "year": 2008,
+      "category": "Animação",
+      "plot": "Curta de animação open-source da Blender Foundation (Creative Commons CC-BY).",
+      "poster": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg",
+      "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "container": "mp4"
+    },
+    {
+      "id": "sintel",
+      "title": "Sintel",
+      "year": 2010,
+      "category": "Animação",
+      "plot": "Curta de animação open-source da Blender Foundation (Creative Commons CC-BY).",
+      "poster": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg",
+      "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+      "container": "mp4"
+    }
+  ],
+  "series": [
+    {
+      "id": "blender-open-movies",
+      "title": "Blender Open Movies",
+      "year": 2012,
+      "category": "Animação",
+      "plot": "Coleção de curtas open-source (Creative Commons) da Blender Foundation — exemplo de série.",
+      "poster": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/TearsOfSteel.jpg",
+      "seasons": [
+        {
+          "season": 1,
+          "episodes": [
+            {
+              "ep": 1,
+              "title": "Elephants Dream",
+              "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+              "container": "mp4"
+            },
+            {
+              "ep": 2,
+              "title": "Big Buck Bunny",
+              "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+              "container": "mp4"
+            },
+            {
+              "ep": 3,
+              "title": "Sintel",
+              "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+              "container": "mp4"
+            },
+            {
+              "ep": 4,
+              "title": "Tears of Steel",
+              "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+              "container": "mp4"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

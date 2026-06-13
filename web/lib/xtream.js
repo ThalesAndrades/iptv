@@ -12,7 +12,7 @@
 // qualquer usuário/senha não-vazios são aceitos.
 
 import { contextLabel, isBrazil } from './grouping.js'
-import vod from './vod.js'
+import library from './library.js'
 
 /** Catálogo canônico: mesma ordem dos dados → stream_id estável. Sem adulto. */
 function catalog(data) {
@@ -141,18 +141,20 @@ function handlePlayerApi(req, data) {
       return liveCategories(data).map(({ _label, ...c }) => c)
     case 'get_live_streams':
       return liveStreams(data, req.query.category_id)
-    // VOD (Filmes) — acervo de domínio público (Internet Archive).
+    // VOD (Filmes): catálogo próprio + acervo de domínio público.
     case 'get_vod_categories':
-      return vod.categories()
+      return library.vodCategories()
     case 'get_vod_streams':
-      return vod.streams(req.query.category_id)
+      return library.vodStreams(req.query.category_id)
     case 'get_vod_info':
-      return vod.info(req.query.vod_id)
-    // Sem séries por ora: respostas vazias para os apps não quebrarem.
+      return library.vodInfo(req.query.vod_id)
+    // Séries (catálogo próprio).
     case 'get_series_categories':
+      return library.seriesCategories()
     case 'get_series':
+      return library.seriesList(req.query.category_id)
     case 'get_series_info':
-      return []
+      return library.seriesInfo(req.query.series_id)
     default:
       return []
   }

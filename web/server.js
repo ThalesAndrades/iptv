@@ -13,6 +13,7 @@ import epg from './lib/epg.js'
 import { buildM3U } from './lib/playlist.js'
 import xtream from './lib/xtream.js'
 import vod from './lib/vod.js'
+import library from './lib/library.js'
 
 /**
  * Compara dois tokens em tempo constante (evita timing attack). Compara hashes
@@ -190,15 +191,30 @@ app.get('/live/:username/:password/:streamId', rateLimit, (req, res) => {
   }
   res.redirect(302, target)
 })
-// VOD (Filmes): redireciona ao arquivo no Internet Archive (domínio público).
+// VOD (Filmes): redireciona ao arquivo de origem (catálogo próprio ou acervo).
 app.get('/movie/:username/:password/:streamId', rateLimit, (req, res) => {
   const { username, password, streamId } = req.params
   if (!xtream.checkAuth(username, password)) {
     res.status(403).end()
     return
   }
-  const id = String(streamId).replace(/\.(mp4|m4v|ogv|mpe?g|webm)$/i, '')
-  const target = vod.resolve(id)
+  const id = String(streamId).replace(/\.(mp4|m4v|ogv|mpe?g|webm|mkv|ts)$/i, '')
+  const target = library.vodResolve(id)
+  if (!target) {
+    res.status(404).end()
+    return
+  }
+  res.redirect(302, target)
+})
+// Séries: redireciona ao arquivo do episódio (catálogo próprio).
+app.get('/series/:username/:password/:episodeId', rateLimit, (req, res) => {
+  const { username, password, episodeId } = req.params
+  if (!xtream.checkAuth(username, password)) {
+    res.status(403).end()
+    return
+  }
+  const id = String(episodeId).replace(/\.(mp4|m4v|ogv|mpe?g|webm|mkv|ts)$/i, '')
+  const target = library.episodeResolve(id)
   if (!target) {
     res.status(404).end()
     return
