@@ -81,6 +81,25 @@ function placeholderLogo() {
   return el('div', { class: 'card-logo placeholder', text: '📺' })
 }
 
+/**
+ * Mostra placeholders "shimmer" enquanto a grade carrega (percepção de
+ * velocidade). São puramente decorativos (aria-hidden) e sem interação.
+ */
+export function renderSkeletons(gridEl, n = 12) {
+  clear(gridEl)
+  const frag = document.createDocumentFragment()
+  for (let i = 0; i < n; i++) {
+    frag.append(
+      el('div', { class: 'card skeleton', 'aria-hidden': 'true' }, [
+        el('div', { class: 'skel-box skel-logo' }),
+        el('div', { class: 'skel-box skel-line' }),
+        el('div', { class: 'skel-box skel-line short' })
+      ])
+    )
+  }
+  gridEl.append(frag)
+}
+
 /** Renderiza a grade de canais. */
 export function renderGrid(gridEl, emptyEl, channels, onPlay, onFavorite) {
   clear(gridEl)

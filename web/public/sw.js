@@ -2,7 +2,7 @@
 // básico. NÃO cacheia respostas de /api/* nem /stream (dados ao vivo) — só os
 // arquivos estáticos da interface.
 
-const CACHE = 'iptv-web-v4'
+const CACHE = 'iptv-web-v5'
 const SHELL = [
   './',
   './index.html',
@@ -18,7 +18,7 @@ const SHELL = [
   './logo.png',
   './icon.png'
 ]
-// Cache v4: app shell repaginado (hero, chips, badge AO VIVO, CSS novo).
+// Cache v5: design system refinado (tokens, hero com provas, skeletons, polish).
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)))
