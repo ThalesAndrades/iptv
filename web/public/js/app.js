@@ -3,7 +3,7 @@
 // (deep link) e tema.
 
 import { getMeta, getChannels, getEpg } from './api.js'
-import { renderGrid, fillSelect, renderPlayerInfo, renderEpg } from './ui.js'
+import { renderGrid, renderSkeletons, fillSelect, renderPlayerInfo, renderEpg } from './ui.js'
 import { favoriteChannels, favoritesCount, setLastChannel, getLastChannel } from './store.js'
 import * as player from './player.js'
 
@@ -36,6 +36,10 @@ async function load() {
     $('next').disabled = true
     return
   }
+
+  // Placeholders enquanto a resposta do servidor não chega.
+  renderSkeletons($('grid'))
+  $('empty').hidden = true
 
   try {
     const data = await getChannels({
