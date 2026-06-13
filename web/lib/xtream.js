@@ -11,6 +11,8 @@
 // exige exatamente eles. Caso contrário (modo demo, catálogo público/gratuito),
 // qualquer usuário/senha não-vazios são aceitos.
 
+import { contextLabel, isBrazil } from './grouping.js'
+
 /** Catálogo canônico: mesma ordem dos dados → stream_id estável. Sem adulto. */
 function catalog(data) {
   return data.filtered({ includeNsfw: false })
@@ -21,30 +23,41 @@ function clean(value) {
   return String(value == null ? '' : value).replace(/[\r\n]+/g, ' ').trim()
 }
 
-/** Categorias ao vivo = categorias de conteúdo do dataset, com id numérico. */
+/**
+ * Categorias ao vivo derivadas do contexto (Brasil por gênero; o resto em
+ * "Internacionais"). Brasil primeiro; depois alfabético. Id numérico estável
+ * por rótulo dentro de uma versão dos dados.
+ */
 function liveCategories(data) {
-  return data.meta().categories.map((c, i) => ({
+  const seen = new Map() // label -> isBr
+  for (const s of catalog(data)) {
+    const label = contextLabel(s)
+    if (!seen.has(label)) seen.set(label, isBrazil(s))
+  }
+  const labels = [...seen.entries()]
+    .map(([label, br]) => ({ label, br }))
+    .sort((a, b) => (a.br !== b.br ? (a.br ? -1 : 1) : a.label.localeCompare(b.label, 'pt-BR')))
+  return labels.map((l, i) => ({
     category_id: String(i + 1),
-    category_name: c.name,
+    category_name: l.label,
     parent_id: 0,
-    _slug: c.id
+    _label: l.label
   }))
 }
 
-/** Mapa slug-da-categoria -> category_id numérico. */
-function categoryIdBySlug(data) {
-  return new Map(liveCategories(data).map(c => [c._slug, c.category_id]))
+/** Mapa rótulo-de-contexto -> category_id numérico. */
+function categoryIdByLabel(data) {
+  return new Map(liveCategories(data).map(c => [c._label, c.category_id]))
 }
 
 /** Lista de streams ao vivo no formato Xtream (opcionalmente por categoria). */
 function liveStreams(data, categoryId) {
-  const idBySlug = categoryIdBySlug(data)
+  const idByLabel = categoryIdByLabel(data)
   const list = catalog(data)
   const out = []
   list.forEach((s, idx) => {
     if (!s.url) return
-    const slug = s.categories?.[0]?.id || null
-    const catId = slug ? idBySlug.get(slug) || '0' : '0'
+    const catId = idByLabel.get(contextLabel(s)) || '0'
     if (categoryId && String(categoryId) !== String(catId)) return
     out.push({
       num: idx + 1,
@@ -124,7 +137,7 @@ function handlePlayerApi(req, data) {
     case '':
       return { user_info: userInfo(username, password), server_info: serverInfo(req) }
     case 'get_live_categories':
-      return liveCategories(data).map(({ _slug, ...c }) => c)
+      return liveCategories(data).map(({ _label, ...c }) => c)
     case 'get_live_streams':
       return liveStreams(data, req.query.category_id)
     // Sem VOD/séries: respostas vazias para os apps não quebrarem.
@@ -154,9 +167,21 @@ function liveTarget(req, data, streamId) {
   return `${base}/stream?${params.toString()}`
 }
 
-/** EPG XMLTV mínimo e válido (sem programação — ver limitação no README). */
-function xmltv() {
-  return '<?xml version="1.0" encoding="UTF-8"?>\n<tv generator-info-name="iptv-web"></tv>\n'
+/**
+ * Canais brasileiros para o EPG: um por id de canal (id + nome). O casamento
+ * com a programação é feito por id/nome contra a fonte XMLTV externa.
+ * @returns {{ epgId: string, name: string }[]}
+ */
+function brEpgChannels(data) {
+  const seen = new Set()
+  const out = []
+  for (const s of catalog(data)) {
+    if (!isBrazil(s) || !s.channel) continue
+    if (seen.has(s.channel)) continue
+    seen.add(s.channel)
+    out.push({ epgId: s.channel, name: s.channelName || s.name })
+  }
+  return out
 }
 
-export default { handlePlayerApi, liveTarget, checkAuth, xmltv }
+export default { handlePlayerApi, liveTarget, checkAuth, brEpgChannels }

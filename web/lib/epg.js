@@ -157,10 +157,190 @@ async function getNowNext(guide) {
   return []
 }
 
+// ---------------------------------------------------------------------------
+// EPG completo em XMLTV (para apps de TV via Xtream /xmltv.php).
+// Foco nos canais brasileiros: monta <channel> + <programme> a partir das
+// mesmas fontes XMLTV, com janela de tempo limitada, cache longo e build em
+// segundo plano (o request nunca bloqueia esperando downloads).
+// ---------------------------------------------------------------------------
+
+const XMLTV_TTL_MS = 3 * 60 * 60 * 1000 // 3 h
+const XMLTV_BUILD_BUDGET_MS = 22_000 // tempo máx. por build
+const XMLTV_MAX_SOURCES = 25 // nº máx. de fontes baixadas por build
+const XMLTV_WINDOW_BACK_MS = 6 * 60 * 60 * 1000
+const XMLTV_WINDOW_FWD_MS = 48 * 60 * 60 * 1000
+const XMLTV_MAX_PROGS_PER_CH = 60
+const EMPTY_XMLTV =
+  '<?xml version="1.0" encoding="UTF-8"?>\n<tv generator-info-name="iptv-web"></tv>\n'
+
+let xmltvCache = { at: 0, xml: null }
+let xmltvBuilding = false
+
+function xmlText(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+function xmlAttr(value) {
+  return xmlText(value).replace(/"/g, '&quot;')
+}
+function formatXmltvDate(ms) {
+  const d = new Date(ms)
+  const p = n => String(n).padStart(2, '0')
+  return (
+    `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}` +
+    `${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())} +0000`
+  )
+}
+
+/** Normaliza um nome de canal para casar entre fontes (sem acento/cidade/pontuação). */
+function canonName(raw) {
+  let s = String(raw == null ? '' : raw)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+  s = s.replace(/^.*?\/[a-z]{2}\s+/, '') // remove prefixo "cidade/uf " (ex.: "são paulo/sp ")
+  return s.replace(/[^a-z0-9]+/g, '')
+}
+
+/** Canônico a partir do id da fonte (ex.: "São.Paulo/SP..SporTV.2.br" -> "sportv2"). */
+function canonFromId(id) {
+  let s = String(id == null ? '' : id)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+  s = s.replace(/^.*?\/[a-z]{2}[.\s]+/, '') // remove "cidade/uf" (ponto ou espaço)
+  s = s.replace(/\.br$/, '')
+  return s.replace(/[^a-z0-9]+/g, '')
+}
+
+/** Lê os <channel> da fonte XMLTV: id da fonte -> nome canônico. */
+function parseSourceChannels(xmltv) {
+  const map = new Map()
+  const re = /<channel\b[^>]*\bid="([^"]*)"[^>]*>([\s\S]*?)<\/channel>/gi
+  let m
+  while ((m = re.exec(xmltv)) !== null) {
+    const dn = m[2].match(/<display-name\b[^>]*>([\s\S]*?)<\/display-name>/i)
+    if (dn) map.set(m[1], canonName(decodeEntities(dn[1])))
+  }
+  return map
+}
+
+/**
+ * Monta o XMLTV dos canais informados a partir de fontes XMLTV externas,
+ * casando por id direto ou por nome canônico. Janela de tempo limitada, teto de
+ * programas por canal e orçamento de tempo (o resto fica para o próximo build).
+ * @param {{ epgId:string, name:string }[]} channels
+ * @param {{ url:string, format?:string }[]} sources
+ */
+async function buildXmltv(channels, sources) {
+  if (!channels?.length || !sources?.length) return EMPTY_XMLTV
+
+  // Índices dos nossos canais: id direto e nome canônico -> epgId.
+  const idSet = new Set(channels.map(c => c.epgId))
+  const nameToEpg = new Map()
+  const nameByEpg = new Map()
+  for (const c of channels) {
+    nameByEpg.set(c.epgId, c.name)
+    const key = canonName(c.name)
+    if (key && !nameToEpg.has(key)) nameToEpg.set(key, c.epgId)
+  }
+
+  const deadline = Date.now() + XMLTV_BUILD_BUDGET_MS
+  const since = Date.now() - XMLTV_WINDOW_BACK_MS
+  const until = Date.now() + XMLTV_WINDOW_FWD_MS
+  const programsByEpg = new Map() // epgId -> [{title,start,stop}]
+  let used = 0
+
+  for (const source of sources) {
+    if (used++ >= XMLTV_MAX_SOURCES || Date.now() > deadline) break
+    const raw = await getRaw(source)
+    if (!raw) continue
+
+    // id-da-fonte -> epgId (via id direto ou nome canônico do <display-name>).
+    const srcToEpg = new Map()
+    for (const [srcId, cname] of parseSourceChannels(raw)) {
+      if (idSet.has(srcId)) {
+        srcToEpg.set(srcId, srcId)
+        continue
+      }
+      const epgId = nameToEpg.get(cname) || nameToEpg.get(canonFromId(srcId))
+      if (epgId) srcToEpg.set(srcId, epgId)
+    }
+
+    const re = /<programme\b([^>]*)>([\s\S]*?)<\/programme>/gi
+    let m
+    while ((m = re.exec(raw)) !== null) {
+      const ch = (m[1].match(/\bchannel="([^"]*)"/i) || [])[1]
+      const epgId = ch && srcToEpg.get(ch)
+      if (!epgId) continue
+      const start = parseXmltvDate((m[1].match(/\bstart="([^"]*)"/i) || [])[1])
+      if (!start || start < since || start > until) continue
+      const arr = programsByEpg.get(epgId)
+      if (arr && arr.length >= XMLTV_MAX_PROGS_PER_CH) continue
+      const stop = parseXmltvDate((m[1].match(/\bstop="([^"]*)"/i) || [])[1])
+      const titleMatch = m[2].match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)
+      const title = titleMatch ? decodeEntities(titleMatch[1]) : ''
+      if (!title) continue
+      if (arr) arr.push({ title, start, stop })
+      else programsByEpg.set(epgId, [{ title, start, stop }])
+    }
+  }
+
+  const channelTags = []
+  const programmeTags = []
+  for (const [epgId, programs] of programsByEpg) {
+    if (!programs.length) continue
+    programs.sort((a, b) => a.start - b.start)
+    channelTags.push(
+      `  <channel id="${xmlAttr(epgId)}"><display-name>${xmlText(nameByEpg.get(epgId) || epgId)}</display-name></channel>`
+    )
+    for (const p of programs) {
+      programmeTags.push(
+        `  <programme start="${formatXmltvDate(p.start)}" stop="${formatXmltvDate(
+          p.stop || p.start + 3600_000
+        )}" channel="${xmlAttr(epgId)}"><title lang="pt">${xmlText(p.title)}</title></programme>`
+      )
+    }
+  }
+
+  return (
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<tv generator-info-name="iptv-web">\n' +
+    channelTags.join('\n') +
+    (channelTags.length ? '\n' : '') +
+    programmeTags.join('\n') +
+    (programmeTags.length ? '\n' : '') +
+    '</tv>\n'
+  )
+}
+
+/**
+ * XMLTV cacheado (3 h). Devolve o cache imediatamente e, se vencido, dispara um
+ * novo build em segundo plano — o request nunca espera o download.
+ */
+function getXmltvCached(channels, sources) {
+  const fresh = xmltvCache.xml && Date.now() - xmltvCache.at < XMLTV_TTL_MS
+  if (!fresh && !xmltvBuilding) {
+    xmltvBuilding = true
+    buildXmltv(channels, sources)
+      .then(xml => {
+        xmltvCache = { at: Date.now(), xml }
+      })
+      .catch(() => {})
+      .finally(() => {
+        xmltvBuilding = false
+      })
+  }
+  return xmltvCache.xml || EMPTY_XMLTV
+}
+
 /** Limpa os caches (chamado no /api/reload). */
 function clearCache() {
   rawCache.clear()
   resultCache.clear()
+  xmltvCache = { at: 0, xml: null }
 }
 
-export default { getNowNext, clearCache }
+export default { getNowNext, getXmltvCached, clearCache }

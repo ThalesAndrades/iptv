@@ -35,6 +35,16 @@ const REFRESH_INTERVAL_MIN = parseInt(process.env.REFRESH_INTERVAL_MIN || '360',
 // reverso confiável. Em execução direta, deixe desligado — senão um cliente
 // poderia forjar X-Forwarded-For e burlar o rate-limit por IP.
 const TRUST_PROXY = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true'
+// Fonte(s) XMLTV para o EPG do Xtream (/xmltv.php), separadas por vírgula. A API
+// do iptv-org não fornece mais URLs de guia, então usamos uma fonte externa.
+// Default: guia público do Brasil (epgshare01). Override via EPG_XMLTV_URL.
+const EPG_SOURCES = (
+  process.env.EPG_XMLTV_URL || 'https://epgshare01.online/epgshare01/epg_ripper_BR1.xml.gz'
+)
+  .split(',')
+  .map(u => u.trim())
+  .filter(Boolean)
+  .map(url => ({ url, format: /\.gz(\?|$)/i.test(url) ? 'GZIP' : 'XML' }))
 
 const app = express()
 app.disable('x-powered-by')
@@ -140,17 +150,18 @@ app.post('/api/reload', async (req, res) => {
 // Lista os canais filtrados em formato M3U, consumível por IPTV Smarters, Smart
 // IPTV, TiViMate, OTT Navigator, etc. Por padrão usa as URLs diretas dos
 // streams (apps nativos não têm CORS e isso poupa banda); ?proxy=1 roteia pelo
-// /stream. Filtros (querystring): country, category, language, search, nsfw=1,
-// group=category|country. Ex.: /playlist.m3u?country=BR
+// /stream. Os canais são agrupados por contexto (Brasil por gênero; o resto em
+// "Internacionais"). Filtros (querystring): country, category, language,
+// search, nsfw=1. Ex.: /playlist.m3u?country=BR
 app.get('/playlist.m3u', rateLimit, (req, res) => {
-  const { search, category, country, language, group } = req.query
+  const { search, category, country, language } = req.query
   const includeNsfw = req.query.nsfw === '1'
   const useProxy = req.query.proxy === '1'
   const streams = data.filtered({ search, category, country, language, includeNsfw })
   const baseUrl = `${req.protocol}://${req.get('host')}`
   res.setHeader('Content-Type', 'audio/x-mpegurl; charset=utf-8')
   res.setHeader('Content-Disposition', 'inline; filename="iptv.m3u"')
-  res.send(buildM3U(streams, { baseUrl, useProxy, group: group === 'country' ? 'country' : 'category' }))
+  res.send(buildM3U(streams, { baseUrl, useProxy }))
 })
 
 // --- Xtream Codes API (login "host + usuário + senha" dos apps de TV) ---------
@@ -162,7 +173,7 @@ app.get('/player_api.php', rateLimit, (req, res) => {
 })
 app.get('/xmltv.php', rateLimit, (req, res) => {
   res.setHeader('Content-Type', 'application/xml; charset=utf-8')
-  res.send(xtream.xmltv())
+  res.send(epg.getXmltvCached(xtream.brEpgChannels(data), EPG_SOURCES))
 })
 app.get('/live/:username/:password/:streamId', rateLimit, (req, res) => {
   const { username, password, streamId } = req.params
