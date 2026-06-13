@@ -3,7 +3,15 @@
 // (deep link) e tema.
 
 import { getMeta, getChannels, getEpg } from './api.js'
-import { renderGrid, renderSkeletons, fillSelect, renderPlayerInfo, renderEpg } from './ui.js'
+import {
+  renderGrid,
+  renderSkeletons,
+  rail,
+  renderRailSkeletons,
+  fillSelect,
+  renderPlayerInfo,
+  renderEpg
+} from './ui.js'
 import { favoriteChannels, favoritesCount, setLastChannel, getLastChannel } from './store.js'
 import * as player from './player.js'
 
@@ -217,10 +225,75 @@ function onChip(chip) {
   resetToFirstPageAndLoad()
 }
 
+// ---- Home: trilhas horizontais por categoria (estilo streaming) ----
+const RAILS = [
+  { title: '🇧🇷 Brasil', params: { country: 'BR' }, chip: { country: 'BR' } },
+  { title: '📰 Notícias', params: { category: 'news' }, chip: { category: 'news' } },
+  { title: '⚽ Esportes', params: { category: 'sports' }, chip: { category: 'sports' } },
+  { title: '🎬 Filmes', params: { category: 'movies' }, chip: { category: 'movies' } },
+  { title: '🧒 Infantil', params: { category: 'kids' }, chip: { category: 'kids' } },
+  { title: '🎵 Música', params: { category: 'music' }, chip: { category: 'music' } }
+]
+
+/** True quando não há nenhum filtro/busca ativo (mostra a home com trilhas). */
+function isHome() {
+  return (
+    !state.search &&
+    !state.category &&
+    !state.country &&
+    !state.language &&
+    !state.favoritesOnly
+  )
+}
+
+/** Alterna entre a home (trilhas) e a visão de resultados (grade + paginação). */
+function route() {
+  if (isHome()) {
+    $('results').hidden = true
+    $('home').hidden = false
+    showHome()
+  } else {
+    $('home').hidden = true
+    $('results').hidden = false
+    state.page = 1
+    load()
+  }
+}
+
+/** Aplica um filtro a partir do botão "Ver todos" de uma trilha. */
+function applyRail(chip) {
+  state.country = chip.country || ''
+  state.category = chip.category || ''
+  state.favoritesOnly = false
+  $('filter-country').value = state.country
+  $('filter-category').value = state.category
+  syncChips()
+  route()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+async function showHome() {
+  const home = $('home')
+  renderRailSkeletons(home, RAILS.map(r => r.title))
+  const results = await Promise.all(
+    RAILS.map(r =>
+      getChannels({ ...r.params, page: 1, limit: 18 }).catch(() => ({ items: [] }))
+    )
+  )
+  // Evita render tardio se o usuário já saiu da home.
+  if (!isHome()) return
+  home.replaceChildren()
+  results.forEach((data, i) => {
+    if (!data.items?.length) return
+    const r = RAILS[i]
+    home.append(rail(r.title, data.items, openPlayer, onFavoriteToggled, () => applyRail(r.chip)))
+  })
+}
+
 // ---- Filtros e busca ----
 function resetToFirstPageAndLoad() {
   state.page = 1
-  load()
+  route()
 }
 
 function debounce(fn, ms) {
@@ -346,9 +419,9 @@ async function init() {
   }
 
   syncChips()
-  // Deep link de canal (#c=...) tem prioridade sobre a grade inicial.
+  // Deep link de canal (#c=...) abre o player sobre a home.
   openFromHash()
-  await load()
+  route()
 }
 
 init()

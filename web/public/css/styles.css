@@ -764,6 +764,86 @@ body {
   white-space: nowrap;
 }
 
+/* ---- Home: trilhas horizontais (estilo streaming) ---- */
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+.rail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.rail-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.rail-more {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+.rail-more:hover {
+  text-decoration: underline;
+}
+.rail-track {
+  display: flex;
+  gap: var(--sp-4);
+  overflow-x: auto;
+  padding: 2px 2px 10px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.rail-track .card {
+  width: 174px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
+/* ---- Rodapé ---- */
+.site-footer {
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 26px var(--sp-5);
+  margin-top: 40px;
+}
+.foot-wrap {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 28px;
+}
+.foot-wrap p {
+  margin: 0;
+}
+.foot-brand strong {
+  color: var(--text);
+}
+.foot-legal {
+  flex-basis: 100%;
+  color: var(--text-mute);
+  font-size: 12px;
+}
+.site-footer a {
+  color: var(--accent);
+}
+
 /* ---- Responsivo ---- */
 @media (max-width: 860px) {
   .layout {
@@ -796,6 +876,12 @@ body {
   .grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: var(--sp-3);
+  }
+  .rail-track .card {
+    width: 146px;
+  }
+  .foot-wrap {
+    gap: 6px 16px;
   }
 }
 

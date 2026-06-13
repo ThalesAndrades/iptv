@@ -109,6 +109,42 @@ export function renderGrid(gridEl, emptyEl, channels, onPlay, onFavorite) {
   gridEl.append(frag)
 }
 
+/** Cria uma "trilha" horizontal (estilo streaming): título + carrossel de cards. */
+export function rail(title, items, onPlay, onFavorite, onSeeAll) {
+  const track = el('div', { class: 'rail-track' })
+  for (const ch of items) track.append(card(ch, onPlay, onFavorite))
+  const head = [el('h2', { class: 'rail-title', text: title })]
+  if (onSeeAll) {
+    const more = el('button', { class: 'rail-more', type: 'button', text: 'Ver todos →' })
+    more.addEventListener('click', onSeeAll)
+    head.push(more)
+  }
+  return el('section', { class: 'rail' }, [el('div', { class: 'rail-head' }, head), track])
+}
+
+/** Skeletons das trilhas enquanto a home carrega. */
+export function renderRailSkeletons(container, titles) {
+  clear(container)
+  for (const title of titles) {
+    const track = el('div', { class: 'rail-track' })
+    for (let i = 0; i < 6; i++) {
+      track.append(
+        el('div', { class: 'card skeleton', 'aria-hidden': 'true' }, [
+          el('div', { class: 'skel-box skel-logo' }),
+          el('div', { class: 'skel-box skel-line' }),
+          el('div', { class: 'skel-box skel-line short' })
+        ])
+      )
+    }
+    container.append(
+      el('section', { class: 'rail' }, [
+        el('div', { class: 'rail-head' }, [el('h2', { class: 'rail-title', text: title })]),
+        track
+      ])
+    )
+  }
+}
+
 /** Preenche um <select> a partir de uma lista [{value, label}]. */
 export function fillSelect(selectEl, items, firstLabel) {
   clear(selectEl)
