@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/banner.png" alt="IPTV Web" width="760" />
+</p>
+
 # IPTV Web
 
 Site que consome os dados **públicos** do projeto [iptv-org](https://github.com/iptv-org/iptv)
@@ -79,10 +83,62 @@ Acesse **http://localhost:3000**.
 
 Para mudar a porta: `PORT=8080 npm start`.
 
+## Deploy (produção)
+
+O `web/` já vem pronto para produção: `Dockerfile`, healthcheck em `/healthz`,
+shutdown gracioso, headers de segurança, rate-limit no proxy e atualização
+periódica do dataset. Variáveis de ambiente em [`.env.example`](.env.example).
+
+> ⚠️ Precisa de um host com **runtime Node + saída de internet** (para baixar os
+> dados do iptv-org). GitHub Pages **não serve** (é estático) — use Render, Fly.io,
+> Railway, Cloud Run, etc.
+
+### Docker (qualquer host)
+
+```sh
+cd web
+docker build -t iptv-web .
+docker run -p 3000:3000 iptv-web
+```
+
+### Render (1 clique, free tier)
+
+1. Faça push deste repositório para o seu GitHub.
+2. No [Render](https://render.com): **New → Blueprint** e selecione o repo. O
+   `render.yaml` na **raiz** do repositório configura o serviço automaticamente
+   (`rootDir: web`, build via `web/Dockerfile`).
+3. Deploy. O healthcheck `/healthz` confirma quando estiver no ar.
+
+### Fly.io
+
+```sh
+cd web
+fly launch --no-deploy   # ajusta o nome do app no fly.toml
+fly deploy
+```
+
+### Railway / Cloud Run
+
+Apontam direto para o `Dockerfile`. Defina `PORT` conforme a plataforma
+(o servidor respeita `PORT` e escuta em `0.0.0.0`).
+
+### Variáveis de ambiente
+
+| Variável | Padrão | Descrição |
+| --- | --- | --- |
+| `PORT` | `3000` | Porta (a plataforma costuma definir) |
+| `HOST` | `0.0.0.0` | Interface de escuta |
+| `IPTV_API_BASE` | API pública do iptv-org | Origem dos dados |
+| `TRUST_PROXY` | `0` | Confiar no `X-Forwarded-*` (ative `1` atrás de proxy reverso) |
+| `REFRESH_INTERVAL_MIN` | `360` | Atualização automática do dataset (min; `0` desliga) |
+| `STREAM_RATE_MAX` | `600` | Limite de req/min por IP no `/stream` |
+| `RELOAD_TOKEN` | — | Habilita `POST /api/reload` (header `x-reload-token`) |
+
 ## API interna (back-end)
 
 | Rota | Descrição |
 | --- | --- |
+| `GET /healthz` | Healthcheck — `200` quando os dados carregaram (`{status, streams, loadedAt}`) |
 | `GET /api/meta` | Total + categorias, países e idiomas (com contagem) para os filtros |
 | `GET /api/channels` | Lista filtrada/paginada. Query: `search`, `category`, `country`, `language`, `nsfw=1`, `page`, `limit` |
 | `GET /api/epg` | Guia "Agora/A seguir" de um stream. Query: `stream=<channel@feed>`. Best-effort; `{ available: false }` quando não há guia |
