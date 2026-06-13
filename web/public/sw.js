@@ -18,7 +18,7 @@ const SHELL = [
   './logo.png',
   './icon.png'
 ]
-// Nova versão do cache porque o app shell mudou (logo no header).
+// Cache v4: app shell repaginado (hero, chips, badge AO VIVO, CSS novo).
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)))

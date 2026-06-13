@@ -328,9 +328,15 @@ async function init() {
       meta.languages.map(l => ({ value: l.code, label: `${l.name} (${l.count})` })),
       'Todos'
     )
-    $('meta-info').textContent = `${meta.total.toLocaleString('pt-BR')} streams no total`
+    // Reaplica o estado aos selects recém-populados (caso um chip tenha sido
+    // clicado antes de os metadados carregarem).
+    $('filter-category').value = state.category
+    $('filter-country').value = state.country
+    $('filter-language').value = state.language
+    const totalFmt = meta.total.toLocaleString('pt-BR')
+    $('meta-info').textContent = `${totalFmt} canais no total`
     const heroCount = $('hero-count')
-    if (heroCount) heroCount.textContent = `${meta.total.toLocaleString('pt-BR')}`
+    if (heroCount) heroCount.textContent = totalFmt
   } catch {
     console.warn('Falha ao carregar metadados')
   }
