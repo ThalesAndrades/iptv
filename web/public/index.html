@@ -79,6 +79,27 @@
       </aside>
 
       <main class="content">
+        <section class="hero">
+          <h1 class="hero-title">
+            <span class="grad">TV ao vivo, de graça</span> <span aria-hidden="true">🇧🇷</span>
+          </h1>
+          <p class="hero-sub">
+            Mais de <strong id="hero-count">15 mil</strong> canais do Brasil e do mundo, direto no
+            navegador — sem cadastro, sem instalar nada.
+          </p>
+        </section>
+
+        <nav class="chips" id="chips" aria-label="Filtros rápidos">
+          <button class="chip" type="button" data-type="all">🌎 Todos</button>
+          <button class="chip" type="button" data-type="country" data-value="BR">🇧🇷 Brasil</button>
+          <button class="chip" type="button" data-type="category" data-value="news">📰 Notícias</button>
+          <button class="chip" type="button" data-type="category" data-value="sports">⚽ Esportes</button>
+          <button class="chip" type="button" data-type="category" data-value="movies">🎬 Filmes</button>
+          <button class="chip" type="button" data-type="category" data-value="kids">🧒 Infantil</button>
+          <button class="chip" type="button" data-type="category" data-value="music">🎵 Música</button>
+          <button class="chip" type="button" data-type="fav">⭐ Favoritos</button>
+        </nav>
+
         <!-- Player (oculto até escolher um canal). -->
         <section id="player-panel" class="player-panel" hidden>
           <div class="player-wrap">

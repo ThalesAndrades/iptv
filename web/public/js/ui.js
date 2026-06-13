@@ -53,10 +53,16 @@ function card(channel, onPlay, onFavorite) {
     if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
   })
 
+  // Selo "AO VIVO" — todo canal do catálogo é TV ao vivo.
+  const live = el('span', { class: 'live-badge', 'aria-hidden': 'true' }, [
+    el('span', { class: 'live-dot' }),
+    'AO VIVO'
+  ])
+
   const node = el(
     'div',
     { class: 'card', tabindex: '0', role: 'button', 'aria-label': `Assistir ${channel.name}` },
-    [favBtn, logo, el('div', { class: 'card-title', text: channel.name }), sub, badges]
+    [live, favBtn, logo, el('div', { class: 'card-title', text: channel.name }), sub, badges]
   )
 
   const trigger = () => onPlay(channel)

@@ -171,6 +171,48 @@ function refreshContinueButton() {
   }
 }
 
+// ---- Chips (filtros rápidos) ----
+/** Marca o chip ativo conforme o estado atual dos filtros. */
+function syncChips() {
+  for (const chip of document.querySelectorAll('.chip')) {
+    const { type, value } = chip.dataset
+    let active = false
+    if (type === 'all') active = !state.country && !state.category && !state.favoritesOnly
+    else if (type === 'country') active = state.country === value && !state.favoritesOnly
+    else if (type === 'category') active = state.category === value && !state.favoritesOnly
+    else if (type === 'fav') active = state.favoritesOnly
+    chip.classList.toggle('active', active)
+    chip.setAttribute('aria-pressed', active ? 'true' : 'false')
+  }
+}
+
+/** Aplica o filtro de um chip (alterna se já estiver ativo). */
+function onChip(chip) {
+  const { type, value } = chip.dataset
+  if (type === 'all') {
+    state.country = ''
+    state.category = ''
+    state.favoritesOnly = false
+  } else if (type === 'country') {
+    state.country = state.country === value ? '' : value
+    state.favoritesOnly = false
+  } else if (type === 'category') {
+    state.category = state.category === value ? '' : value
+    state.favoritesOnly = false
+  } else if (type === 'fav') {
+    state.favoritesOnly = !state.favoritesOnly
+  }
+  // Mantém os selects e o checkbox em sincronia com o estado.
+  $('filter-country').value = state.country
+  $('filter-category').value = state.category
+  $('filter-favorites').checked = state.favoritesOnly
+  for (const id of ['filter-category', 'filter-country', 'filter-language']) {
+    $(id).disabled = state.favoritesOnly
+  }
+  syncChips()
+  resetToFirstPageAndLoad()
+}
+
 // ---- Filtros e busca ----
 function resetToFirstPageAndLoad() {
   state.page = 1
@@ -212,10 +254,12 @@ async function init() {
   )
   $('filter-category').addEventListener('change', e => {
     state.category = e.target.value
+    syncChips()
     resetToFirstPageAndLoad()
   })
   $('filter-country').addEventListener('change', e => {
     state.country = e.target.value
+    syncChips()
     resetToFirstPageAndLoad()
   })
   $('filter-language').addEventListener('change', e => {
@@ -232,8 +276,14 @@ async function init() {
     for (const id of ['filter-category', 'filter-country', 'filter-language']) {
       $(id).disabled = e.target.checked
     }
+    syncChips()
     resetToFirstPageAndLoad()
   })
+
+  // Chips de filtro rápido.
+  for (const chip of document.querySelectorAll('.chip')) {
+    chip.addEventListener('click', () => onChip(chip))
+  }
 
   // Paginação.
   $('prev').addEventListener('click', () => {
@@ -279,10 +329,13 @@ async function init() {
       'Todos'
     )
     $('meta-info').textContent = `${meta.total.toLocaleString('pt-BR')} streams no total`
+    const heroCount = $('hero-count')
+    if (heroCount) heroCount.textContent = `${meta.total.toLocaleString('pt-BR')}`
   } catch {
     console.warn('Falha ao carregar metadados')
   }
 
+  syncChips()
   // Deep link de canal (#c=...) tem prioridade sobre a grade inicial.
   openFromHash()
   await load()
