@@ -131,7 +131,10 @@
           </div>
         </section>
 
-        <section class="results">
+        <!-- Home: trilhas horizontais por categoria (quando sem filtro). -->
+        <div id="home" class="home" hidden></div>
+
+        <section id="results" class="results" hidden>
           <div id="grid" class="grid" aria-live="polite"></div>
           <div id="empty" class="empty" hidden>Nenhum canal encontrado.</div>
           <div class="pager">
@@ -142,6 +145,22 @@
         </section>
       </main>
     </div>
+
+    <footer class="site-footer">
+      <div class="foot-wrap">
+        <p class="foot-brand">
+          <strong>IPTV Web</strong> — catálogo de canais públicos, ao vivo no navegador.
+        </p>
+        <p class="foot-links">
+          Dados:
+          <a href="https://github.com/iptv-org/iptv" target="_blank" rel="noopener">iptv-org</a>
+          (CC0) · Player HLS · PWA
+        </p>
+        <p class="foot-legal">
+          O conteúdo dos canais é de responsabilidade das respectivas fontes públicas.
+        </p>
+      </div>
+    </footer>
 
     <script type="module" src="./js/app.js"></script>
     <script>
