@@ -1,0 +1,26 @@
+# Dispara o deploy do serviço no Render via Deploy Hook a cada push no master.
+# Contorna o autoDeploy nativo do Render (que não estava disparando).
+#
+# Pré-requisito (1x): em GitHub → Settings → Secrets and variables → Actions,
+# crie o secret RENDER_DEPLOY_HOOK com a URL do Deploy Hook
+# (Render → serviço → Settings → Deploy Hook). NUNCA cole a URL aqui em texto.
+name: Deploy to Render
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar Render Deploy Hook
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "Secret RENDER_DEPLOY_HOOK não definido — pulando deploy."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" && echo "Deploy disparado no Render."
