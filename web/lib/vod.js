@@ -1,8 +1,8 @@
-// VOD (Filmes) a partir do Internet Archive — acervo de DOMÍNIO PÚBLICO, legal e
-// gratuito. Nada de conteúdo protegido. O catálogo é montado em segundo plano
-// (inspeciona itens, escolhe o melhor arquivo de vídeo, pula os "stubs" sem
-// vídeo) e cacheado; o stream é servido por REDIRECT à URL do Internet Archive
-// (não hospedamos nem reencaminhamos os GBs — poupa banda).
+// Fonte de Filmes de DOMÍNIO PÚBLICO (Internet Archive) — acervo legal e
+// gratuito, usado como base do catálogo. O catálogo é montado em segundo plano
+// (inspeciona itens, escolhe o melhor arquivo de vídeo, pula "stubs" sem vídeo)
+// e cacheado. Expõe uma lista NORMALIZADA; a forma Xtream fica no coordenador
+// (lib/library.js). A reprodução é por REDIRECT à URL do Internet Archive.
 
 const IA_SEARCH = 'https://archive.org/advancedsearch.php'
 const IA_META = 'https://archive.org/metadata'
@@ -18,7 +18,6 @@ const BUILD_BUDGET_MS = 35_000
 const FETCH_TIMEOUT_MS = 12_000
 const TTL_MS = 12 * 60 * 60 * 1000 // 12 h
 
-// Formatos de vídeo do IA, em ordem de preferência.
 const VIDEO_FORMATS = ['h.264', 'MPEG4', 'h.264 IA', 'HiRes MPEG4', '512Kb MPEG4', 'MPEG2', 'Ogg Video']
 const ADULT_RE = /\b(sex|porn|xxx|nude|nudist|erotic|erótic|playboy)\b/i
 
@@ -43,7 +42,6 @@ async function fetchJson(url) {
   }
 }
 
-/** Busca candidatos (id, título, ano, sinopse) no Internet Archive. */
 async function fetchCandidates() {
   const fields = ['identifier', 'title', 'year', 'description']
   const q = new URLSearchParams({ q: QUERY, rows: String(CANDIDATES), page: '1', output: 'json' })
@@ -54,7 +52,6 @@ async function fetchCandidates() {
   return docs.filter(d => d.identifier && d.title && !ADULT_RE.test(String(d.title)))
 }
 
-/** Escolhe o melhor arquivo de vídeo de um item (ou null). */
 function pickVideoFile(files) {
   const vids = (files || []).filter(f => {
     const name = String(f.name || '').toLowerCase()
@@ -79,7 +76,6 @@ function containerOf(fileName) {
   return ['mp4', 'm4v', 'ogv', 'mpeg', 'mpg', 'webm'].includes(ext) ? ext : 'mp4'
 }
 
-/** Inspeciona um candidato; retorna o filme normalizado ou null (stub/sem vídeo). */
 async function inspect(doc) {
   const meta = await fetchJson(`${IA_META}/${encodeURIComponent(doc.identifier)}`)
   const file = pickVideoFile(meta?.files)
@@ -97,13 +93,11 @@ async function inspect(doc) {
   }
 }
 
-/** Monta o catálogo: inspeciona candidatos com concorrência limitada e budget. */
 async function buildCatalog() {
   const candidates = await fetchCandidates()
   const movies = []
   const deadline = Date.now() + BUILD_BUDGET_MS
   let i = 0
-
   async function worker() {
     while (i < candidates.length && movies.length < TARGET && Date.now() < deadline) {
       const doc = candidates[i++]
@@ -115,7 +109,6 @@ async function buildCatalog() {
   return movies
 }
 
-/** Catálogo cacheado (12 h); dispara build em segundo plano se vencido. */
 function getCatalog() {
   if (!ENABLED) return []
   const fresh = cache.movies && Date.now() - cache.at < TTL_MS
@@ -138,80 +131,19 @@ function decadeOf(year) {
   return `${Math.floor(year / 10) * 10}s`
 }
 
-/** Categorias de VOD (por década), Xtream-style. */
-function categories() {
-  const movies = getCatalog()
-  const labels = [...new Set(movies.map(m => decadeOf(m.year)))].sort()
-  return labels.map((label, i) => ({
-    category_id: String(i + 1),
-    category_name: `🎬 Filmes · ${label}`,
-    parent_id: 0
+/** Lista NORMALIZADA dos filmes de domínio público (consumida por library.js). */
+function list() {
+  return getCatalog().map(m => ({
+    id: `ia:${m.id}`,
+    title: m.title,
+    year: m.year,
+    plot: m.plot,
+    poster: m.poster,
+    category: decadeOf(m.year),
+    url: `${IA_DL}/${encodeURIComponent(m.id)}/${encodeURIComponent(m.file)}`,
+    container: m.container,
+    source: 'ia'
   }))
-}
-
-function categoryIdByLabel() {
-  const movies = getCatalog()
-  const labels = [...new Set(movies.map(m => decadeOf(m.year)))].sort()
-  return new Map(labels.map((label, i) => [label, String(i + 1)]))
-}
-
-/** Lista de filmes (Xtream get_vod_streams), opcionalmente por categoria. */
-function streams(categoryId) {
-  const movies = getCatalog()
-  const idByLabel = categoryIdByLabel()
-  const out = []
-  movies.forEach((m, idx) => {
-    const catId = idByLabel.get(decadeOf(m.year)) || '1'
-    if (categoryId && String(categoryId) !== String(catId)) return
-    out.push({
-      num: idx + 1,
-      name: m.year ? `${m.title} (${m.year})` : m.title,
-      title: m.title,
-      stream_type: 'movie',
-      stream_id: idx + 1,
-      stream_icon: m.poster,
-      rating: '',
-      rating_5based: 0,
-      added: '0',
-      category_id: catId,
-      container_extension: m.container,
-      custom_sid: '',
-      direct_source: ''
-    })
-  })
-  return out
-}
-
-/** Detalhe de um filme (Xtream get_vod_info). */
-function info(vodId) {
-  const movies = getCatalog()
-  const m = movies[parseInt(vodId, 10) - 1]
-  if (!m) return { info: {}, movie_data: {} }
-  return {
-    info: {
-      movie_image: m.poster,
-      cover_big: m.poster,
-      plot: m.plot,
-      description: m.plot,
-      releasedate: m.year ? `${m.year}` : '',
-      rating: '',
-      duration: '',
-      genre: 'Domínio Público'
-    },
-    movie_data: {
-      stream_id: parseInt(vodId, 10),
-      name: m.title,
-      container_extension: m.container
-    }
-  }
-}
-
-/** URL de reprodução (Internet Archive) para um vod stream_id, ou null. */
-function resolve(streamId) {
-  const movies = getCatalog()
-  const m = movies[parseInt(streamId, 10) - 1]
-  if (!m) return null
-  return `${IA_DL}/${encodeURIComponent(m.id)}/${encodeURIComponent(m.file)}`
 }
 
 /** Dispara o build do catálogo (uso na inicialização). */
@@ -219,4 +151,4 @@ function prime() {
   if (ENABLED) getCatalog()
 }
 
-export default { categories, streams, info, resolve, prime, enabled: ENABLED }
+export default { list, prime, enabled: ENABLED }

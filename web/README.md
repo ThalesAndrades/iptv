@@ -136,6 +136,9 @@ Apontam direto para o `Dockerfile`. Defina `PORT` conforme a plataforma
 | `XTREAM_USER` / `XTREAM_PASS` | — | Login fixo do Xtream; se vazios, aceita qualquer credencial (demo) |
 | `XTREAM_DIRECT` | — | `1` faz o `/live` redirecionar à URL direta (sem passar pelo `/stream`) |
 | `EPG_XMLTV_URL` | guia BR (epgshare01) | Fonte(s) XMLTV do EPG, separadas por vírgula |
+| `CATALOG_FILE` | `data/catalog.json` | Catálogo próprio (Filmes/Séries) |
+| `VOD_ENABLED` | `1` | Acervo de Filmes de domínio público (`0` desliga) |
+| `VOD_IA_QUERY` / `VOD_MAX` | — | Consulta e teto do acervo do Internet Archive |
 
 ## API interna (back-end)
 
@@ -191,7 +194,27 @@ para uma fonte com ids do iptv-org para casar 1:1.
 
 Rotas: `GET /player_api.php` (auth + categorias + streams), `GET /live/:user/:pass/:id`
 (redireciona para o stream; via `/stream` por padrão, ou direto com `XTREAM_DIRECT=1`),
-`GET /xmltv.php` (EPG XMLTV). Catálogo só de TV ao vivo (sem VOD/séries).
+`GET /xmltv.php` (EPG XMLTV).
+
+### Filmes e Séries (VOD) — seu catálogo próprio
+
+A Xtream também serve **Filmes** e **Séries**:
+
+- **Catálogo próprio** (`data/catalog.json`): você define seus títulos (Filmes e
+  Séries com temporadas/episódios). É **infraestrutura neutra** — use apenas
+  conteúdo que você tem **direito de distribuir** (domínio público, produção
+  própria ou licenciado). Schema documentado no topo de `lib/catalog.js`; veja o
+  exemplo (curtas Creative Commons da Blender) em `data/catalog.json`.
+- **Acervo de domínio público** (Internet Archive): adiciona automaticamente
+  filmes livres ao VOD (desligue com `VOD_ENABLED=0`).
+- Rotas de reprodução (redirect à origem; não hospedamos os GBs):
+  `GET /movie/:user/:pass/:id` e `GET /series/:user/:pass/:episodeId`.
+- Ações Xtream: `get_vod_categories`, `get_vod_streams`, `get_vod_info`,
+  `get_series_categories`, `get_series`, `get_series_info`.
+
+> **Conteúdo atual/protegido** (lançamentos) exige **licenciamento** — não é
+> incluído nem raspado de fontes piratas. A responsabilidade pelo direito do
+> conteúdo do catálogo é de quem opera o serviço.
 
 ## Segurança
 
