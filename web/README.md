@@ -145,6 +145,9 @@ Apontam direto para o `Dockerfile`. Defina `PORT` conforme a plataforma
 | `POST /api/reload` | Recarrega os dados da API pública sem reiniciar o servidor. Protegido: exige `RELOAD_TOKEN` (env) e o header `x-reload-token`; sem o token definido o endpoint responde `403` |
 | `GET /stream?url=…&ref=…&ua=…` | Proxy do stream (uso interno do player) |
 | `GET /playlist.m3u` | **Playlist M3U para apps de TV** (IPTV Smarters, Smart IPTV, TiViMate…). Query: `country`, `category`, `language`, `search`, `nsfw=1`, `group=category\|country`, `proxy=1` |
+| `GET /player_api.php` | **Xtream Codes API** (auth + `get_live_categories` + `get_live_streams`). Login "host + usuário + senha" dos apps de TV |
+| `GET /live/:user/:pass/:id` | Reprodução Xtream — redireciona o stream (via `/stream`; direto com `XTREAM_DIRECT=1`) |
+| `GET /xmltv.php` | EPG XMLTV do Xtream (mínimo por ora) |
 
 ## Assistir na TV (apps de IPTV)
 
@@ -164,8 +167,19 @@ https://SEU-DOMINIO/playlist.m3u?country=BR
   Load M3U URL" → cole a URL acima.
 - **Smart IPTV (siptv.app)**: cadastre a URL no painel do app pelo MAC da TV.
 
-> Para o fluxo "DNS + usuário + senha" (Xtream Codes), veja a seção de planos —
-> requer o endpoint Xtream (em avaliação).
+### Xtream Codes ("DNS + usuário + senha")
+
+Muitos apps (IPTV Smarters, IBO, Duplex) pedem **servidor + usuário + senha** — é
+o que o pessoal chama de "DNS". O back-end emula a Xtream Codes API:
+
+- **Servidor/URL:** `https://SEU-DOMINIO` · **Usuário/Senha:** quaisquer valores
+  não-vazios (modo demo). Para travar num login fixo, defina `XTREAM_USER` e
+  `XTREAM_PASS` (env).
+- No IPTV Smarters: **"Login with Xtream Codes API"** → preencha os três campos.
+
+Rotas: `GET /player_api.php` (auth + categorias + streams), `GET /live/:user/:pass/:id`
+(redireciona para o stream; via `/stream` por padrão, ou direto com `XTREAM_DIRECT=1`),
+`GET /xmltv.php` (EPG XMLTV — mínimo por ora). Catálogo só de TV ao vivo (sem VOD/séries).
 
 ## Segurança
 

@@ -11,6 +11,7 @@ import data from './lib/data.js'
 import proxy from './lib/proxy.js'
 import epg from './lib/epg.js'
 import { buildM3U } from './lib/playlist.js'
+import xtream from './lib/xtream.js'
 
 /**
  * Compara dois tokens em tempo constante (evita timing attack). Compara hashes
@@ -150,6 +151,32 @@ app.get('/playlist.m3u', rateLimit, (req, res) => {
   res.setHeader('Content-Type', 'audio/x-mpegurl; charset=utf-8')
   res.setHeader('Content-Disposition', 'inline; filename="iptv.m3u"')
   res.send(buildM3U(streams, { baseUrl, useProxy, group: group === 'country' ? 'country' : 'category' }))
+})
+
+// --- Xtream Codes API (login "host + usuário + senha" dos apps de TV) ---------
+// Compatível com IPTV Smarters, IBO, Duplex, etc. Catálogo só de TV ao vivo.
+// Auth: XTREAM_USER/XTREAM_PASS (env) ou, se não definidos, qualquer credencial
+// não-vazia (modo demo, conteúdo público/gratuito).
+app.get('/player_api.php', rateLimit, (req, res) => {
+  res.json(xtream.handlePlayerApi(req, data))
+})
+app.get('/xmltv.php', rateLimit, (req, res) => {
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8')
+  res.send(xtream.xmltv())
+})
+app.get('/live/:username/:password/:streamId', rateLimit, (req, res) => {
+  const { username, password, streamId } = req.params
+  if (!xtream.checkAuth(username, password)) {
+    res.status(403).end()
+    return
+  }
+  const id = String(streamId).replace(/\.(m3u8|ts)$/i, '')
+  const target = xtream.liveTarget(req, data, id)
+  if (!target) {
+    res.status(404).end()
+    return
+  }
+  res.redirect(302, target)
 })
 
 // --- Proxy de streams --------------------------------------------------------
