@@ -233,9 +233,10 @@ async function load() {
 }
 
 /**
- * Consulta filtrada e paginada sobre os streams normalizados.
+ * Aplica os filtros de busca/categoria/país/idioma/nsfw sobre os streams.
+ * Compartilhado entre a consulta paginada (query) e a lista completa (filtered).
  */
-function query({ search, category, country, language, includeNsfw, page = 1, limit = 60 } = {}) {
+function applyFilters({ search, category, country, language, includeNsfw } = {}) {
   const term = (search || '').trim().toLowerCase()
   let list = state.streams
 
@@ -250,6 +251,14 @@ function query({ search, category, country, language, includeNsfw, page = 1, lim
         (s.channelName && s.channelName.toLowerCase().includes(term))
     )
   }
+  return list
+}
+
+/**
+ * Consulta filtrada e paginada sobre os streams normalizados.
+ */
+function query({ search, category, country, language, includeNsfw, page = 1, limit = 60 } = {}) {
+  const list = applyFilters({ search, category, country, language, includeNsfw })
 
   const total = list.length
   const lim = Math.min(Math.max(parseInt(limit, 10) || 60, 1), 200)
@@ -258,6 +267,14 @@ function query({ search, category, country, language, includeNsfw, page = 1, lim
   const items = list.slice(start, start + lim)
 
   return { items, total, page: pg, limit: lim, pages: Math.ceil(total / lim) }
+}
+
+/**
+ * Lista completa (sem paginação) dos streams que casam com os filtros. Usado
+ * pela playlist M3U, que precisa de todos os canais de uma vez.
+ */
+function filtered(opts = {}) {
+  return applyFilters(opts)
 }
 
 function meta() {
@@ -283,4 +300,4 @@ function getGuideForStream(streamId) {
   return state.guidesByStreamId.get(streamId) || null
 }
 
-export default { load, query, meta, getHosts, getGuideForStream, hostOf, splitInlineHeaders }
+export default { load, query, filtered, meta, getHosts, getGuideForStream, hostOf, splitInlineHeaders }

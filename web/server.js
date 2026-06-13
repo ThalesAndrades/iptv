@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import data from './lib/data.js'
 import proxy from './lib/proxy.js'
 import epg from './lib/epg.js'
+import { buildM3U } from './lib/playlist.js'
 
 /**
  * Compara dois tokens em tempo constante (evita timing attack). Compara hashes
@@ -132,6 +133,23 @@ app.post('/api/reload', async (req, res) => {
   } catch {
     res.status(502).json({ ok: false, error: 'Falha ao recarregar dados' })
   }
+})
+
+// --- Playlist M3U (para apps de IPTV de TV) ----------------------------------
+// Lista os canais filtrados em formato M3U, consumível por IPTV Smarters, Smart
+// IPTV, TiViMate, OTT Navigator, etc. Por padrão usa as URLs diretas dos
+// streams (apps nativos não têm CORS e isso poupa banda); ?proxy=1 roteia pelo
+// /stream. Filtros (querystring): country, category, language, search, nsfw=1,
+// group=category|country. Ex.: /playlist.m3u?country=BR
+app.get('/playlist.m3u', rateLimit, (req, res) => {
+  const { search, category, country, language, group } = req.query
+  const includeNsfw = req.query.nsfw === '1'
+  const useProxy = req.query.proxy === '1'
+  const streams = data.filtered({ search, category, country, language, includeNsfw })
+  const baseUrl = `${req.protocol}://${req.get('host')}`
+  res.setHeader('Content-Type', 'audio/x-mpegurl; charset=utf-8')
+  res.setHeader('Content-Disposition', 'inline; filename="iptv.m3u"')
+  res.send(buildM3U(streams, { baseUrl, useProxy, group: group === 'country' ? 'country' : 'category' }))
 })
 
 // --- Proxy de streams --------------------------------------------------------

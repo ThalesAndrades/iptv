@@ -144,6 +144,28 @@ Apontam direto para o `Dockerfile`. Defina `PORT` conforme a plataforma
 | `GET /api/epg` | Guia "Agora/A seguir" de um stream. Query: `stream=<channel@feed>`. Best-effort; `{ available: false }` quando não há guia |
 | `POST /api/reload` | Recarrega os dados da API pública sem reiniciar o servidor. Protegido: exige `RELOAD_TOKEN` (env) e o header `x-reload-token`; sem o token definido o endpoint responde `403` |
 | `GET /stream?url=…&ref=…&ua=…` | Proxy do stream (uso interno do player) |
+| `GET /playlist.m3u` | **Playlist M3U para apps de TV** (IPTV Smarters, Smart IPTV, TiViMate…). Query: `country`, `category`, `language`, `search`, `nsfw=1`, `group=category\|country`, `proxy=1` |
+
+## Assistir na TV (apps de IPTV)
+
+Os apps de IPTV de TV não abrem o site — eles carregam uma **lista M3U** por URL.
+Use o endpoint `/playlist.m3u`:
+
+```
+https://SEU-DOMINIO/playlist.m3u?country=BR
+```
+
+- Sem filtro = todos os ~15 mil canais; recomenda-se filtrar (`country=BR`,
+  `category=news`, etc.) para listas mais leves.
+- Por padrão a lista usa as **URLs diretas** dos streams (melhor para apps
+  nativos e poupa banda do servidor). Use `proxy=1` para roteá-las pelo `/stream`
+  (resolve headers/HTTPS, mas consome banda do servidor).
+- **IPTV Smarters Pro / TiViMate / OTT Navigator**: opção "Adicionar lista /
+  Load M3U URL" → cole a URL acima.
+- **Smart IPTV (siptv.app)**: cadastre a URL no painel do app pelo MAC da TV.
+
+> Para o fluxo "DNS + usuário + senha" (Xtream Codes), veja a seção de planos —
+> requer o endpoint Xtream (em avaliação).
 
 ## Segurança
 
