@@ -24,7 +24,7 @@ const state = {
   countries: [], // [{ code, name, flag, count }]
   languages: [], // [{ code, name, count }]
   hosts: new Set(), // allowlist de hostnames vistos no dataset (usado pelo proxy)
-  guidesByStreamId: new Map(), // "channel@feed" -> { siteId, sources } para EPG
+  guidesByStreamId: new Map(), // "channel@feed" -> { ids, sources } para EPG
   loadedAt: null
 }
 
@@ -300,4 +300,13 @@ function getGuideForStream(streamId) {
   return state.guidesByStreamId.get(streamId) || null
 }
 
-export default { load, query, filtered, meta, getHosts, getGuideForStream, hostOf, splitInlineHeaders }
+export default {
+  load,
+  query,
+  filtered,
+  meta,
+  getHosts,
+  getGuideForStream,
+  hostOf,
+  splitInlineHeaders
+}

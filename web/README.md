@@ -133,6 +133,9 @@ Apontam direto para o `Dockerfile`. Defina `PORT` conforme a plataforma
 | `REFRESH_INTERVAL_MIN` | `360` | Atualização automática do dataset (min; `0` desliga) |
 | `STREAM_RATE_MAX` | `600` | Limite de req/min por IP no `/stream` |
 | `RELOAD_TOKEN` | — | Habilita `POST /api/reload` (header `x-reload-token`) |
+| `XTREAM_USER` / `XTREAM_PASS` | — | Login fixo do Xtream; se vazios, aceita qualquer credencial (demo) |
+| `XTREAM_DIRECT` | — | `1` faz o `/live` redirecionar à URL direta (sem passar pelo `/stream`) |
+| `EPG_XMLTV_URL` | guia BR (epgshare01) | Fonte(s) XMLTV do EPG, separadas por vírgula |
 
 ## API interna (back-end)
 
@@ -144,10 +147,10 @@ Apontam direto para o `Dockerfile`. Defina `PORT` conforme a plataforma
 | `GET /api/epg` | Guia "Agora/A seguir" de um stream. Query: `stream=<channel@feed>`. Best-effort; `{ available: false }` quando não há guia |
 | `POST /api/reload` | Recarrega os dados da API pública sem reiniciar o servidor. Protegido: exige `RELOAD_TOKEN` (env) e o header `x-reload-token`; sem o token definido o endpoint responde `403` |
 | `GET /stream?url=…&ref=…&ua=…` | Proxy do stream (uso interno do player) |
-| `GET /playlist.m3u` | **Playlist M3U para apps de TV** (IPTV Smarters, Smart IPTV, TiViMate…). Query: `country`, `category`, `language`, `search`, `nsfw=1`, `group=category\|country`, `proxy=1` |
+| `GET /playlist.m3u` | **Playlist M3U para apps de TV** (IPTV Smarters, Smart IPTV, TiViMate…). Agrupada por contexto (Brasil por gênero; resto em "Internacionais"). Query: `country`, `category`, `language`, `search`, `nsfw=1`, `proxy=1` |
 | `GET /player_api.php` | **Xtream Codes API** (auth + `get_live_categories` + `get_live_streams`). Login "host + usuário + senha" dos apps de TV |
 | `GET /live/:user/:pass/:id` | Reprodução Xtream — redireciona o stream (via `/stream`; direto com `XTREAM_DIRECT=1`) |
-| `GET /xmltv.php` | EPG XMLTV do Xtream (mínimo por ora) |
+| `GET /xmltv.php` | EPG XMLTV (programação real, focada nos canais brasileiros; cache 3 h + build em segundo plano) |
 
 ## Assistir na TV (apps de IPTV)
 
@@ -177,9 +180,18 @@ o que o pessoal chama de "DNS". O back-end emula a Xtream Codes API:
   `XTREAM_PASS` (env).
 - No IPTV Smarters: **"Login with Xtream Codes API"** → preencha os três campos.
 
+As categorias seguem o contexto: **Brasil por gênero** (Notícias, Esportes…) e
+todo o resto em **Internacionais · {gênero}** (gêneros em PT-BR).
+
+**EPG:** a API do iptv-org não fornece mais URLs de guia, então o `/xmltv.php`
+consome uma **fonte XMLTV externa** (`EPG_XMLTV_URL`, padrão: guia público do
+Brasil da epgshare01), casando com os canais BR por id/nome — com cache de 3 h e
+build em segundo plano. A cobertura depende da fonte; aponte `EPG_XMLTV_URL`
+para uma fonte com ids do iptv-org para casar 1:1.
+
 Rotas: `GET /player_api.php` (auth + categorias + streams), `GET /live/:user/:pass/:id`
 (redireciona para o stream; via `/stream` por padrão, ou direto com `XTREAM_DIRECT=1`),
-`GET /xmltv.php` (EPG XMLTV — mínimo por ora). Catálogo só de TV ao vivo (sem VOD/séries).
+`GET /xmltv.php` (EPG XMLTV). Catálogo só de TV ao vivo (sem VOD/séries).
 
 ## Segurança
 

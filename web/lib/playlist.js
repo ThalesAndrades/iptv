@@ -6,6 +6,9 @@
 // servidor. Com `useProxy`, roteia tudo pelo /stream (resolve headers/HTTPS,
 // mas consome banda do servidor).
 
+import { contextLabel } from './grouping.js'
+
+
 /** Remove quebras de linha e espaços nas pontas (não pode corromper o M3U). */
 function oneLine(value) {
   return String(value == null ? '' : value)
@@ -26,9 +29,8 @@ function attr(value) {
  * @param {object} opts
  * @param {string} [opts.baseUrl]  Origem pública (ex.: https://meusite) — usada quando useProxy.
  * @param {boolean} [opts.useProxy=false]  Roteia as URLs pelo /stream.
- * @param {'category'|'country'} [opts.group='category']  Como agrupar (group-title).
  */
-export function buildM3U(streams, { baseUrl = '', useProxy = false, group = 'category' } = {}) {
+export function buildM3U(streams, { baseUrl = '', useProxy = false } = {}) {
   const lines = ['#EXTM3U']
 
   for (const s of streams) {
@@ -37,11 +39,7 @@ export function buildM3U(streams, { baseUrl = '', useProxy = false, group = 'cat
     const name = oneLine(s.name || s.channelName || 'Sem nome')
     const tvgId = attr(s.channel || '')
     const tvgLogo = attr(s.logo || '')
-    const groupTitle = attr(
-      group === 'country'
-        ? s.country?.name || 'Geral'
-        : s.categories?.[0]?.name || s.country?.name || 'Geral'
-    )
+    const groupTitle = attr(contextLabel(s))
 
     lines.push(
       `#EXTINF:-1 tvg-id="${tvgId}" tvg-name="${attr(name)}" tvg-logo="${tvgLogo}" ` +
